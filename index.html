@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Stationery Request</title>
+
+    <style>
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background: #f5f6f8;
+        }
+
+        header {
+            background: #1f2937;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-top: 10px;
+            margin-bottom: 5px;
+        }
+
+        input {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            margin-top: 20px;
+            border: none;
+            border-radius: 8px;
+            background: #2563eb;
+            color: white;
+            font-size: 16px;
+        }
+
+        .item {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+<header>
+    <h1>Stationery Request</h1>
+</header>
+
+<div class="container">
+
+    <div class="card">
+
+        <h2>สร้างคำขอ</h2>
+
+        <label>รายการ</label>
+
+        <input
+            id="itemName"
+            type="text"
+            placeholder="เช่น ปากกา">
+
+        <label>จำนวน</label>
+
+        <input
+            id="quantity"
+            type="number"
+            value="1"
+            min="1">
+
+        <button onclick="addRequest()">
+            ส่งคำขอ
+        </button>
+
+    </div>
+
+    <div class="card">
+
+        <h2>รายการคำขอ</h2>
+
+        <div id="requestList"></div>
+
+    </div>
+
+</div>
+
+<script>
+
+    function addRequest() {
+
+        const itemName =
+            document.getElementById("itemName").value;
+
+        const quantity =
+            document.getElementById("quantity").value;
+
+        if (!itemName) {
+
+            alert("กรุณาระบุรายการ");
+
+            return;
+        }
+
+        const list =
+            document.getElementById("requestList");
+
+        const item =
+            document.createElement("div");
+
+        item.className = "item";
+
+        item.innerHTML = `
+            <strong>${itemName}</strong>
+            <br>
+            จำนวน: ${quantity}
+            <br>
+            สถานะ: Pending
+        `;
+
+        list.appendChild(item);
+
+        document.getElementById("itemName").value = "";
+
+        document.getElementById("quantity").value = 1;
+    }
+
+</script>
+
+</body>
+
+</html>
