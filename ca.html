@@ -495,7 +495,7 @@
         }
 
 
-                // =================================
+         // =================================
         // โหลดข้อมูล Profile ของผู้ขอ
         // =================================
 
@@ -656,8 +656,206 @@
 
     }
 
+    // =================================
+// โหลดประวัติคำขอ
+// =================================
+
+async function loadHistory() {
+
+    const list =
+        document.getElementById("historyList");
+
+
+    list.innerHTML = `
+        <div class="empty">
+            กำลังโหลด...
+        </div>
+    `;
+
+
+    const { data, error } =
+        await supabaseClient
+            .from("requests")
+            .select("*")
+            .in("status", ["Approved", "Rejected"])
+            .order("approved_at", {
+                ascending: false
+            });
+
+
+    if (error) {
+
+        console.error(error);
+
+        list.innerHTML = `
+            <div class="error">
+                ไม่สามารถโหลดประวัติได้:
+                ${escapeHtml(error.message)}
+            </div>
+        `;
+
+        return;
+
+    }
+
+
+    if (!data || data.length === 0) {
+
+        list.innerHTML = `
+            <div class="empty">
+                ยังไม่มีประวัติคำขอ
+            </div>
+        `;
+
+        return;
+
+    }
+
 
     // =================================
+    // โหลด Profile ของผู้ขอ
+    // =================================
+
+    const userIds = [
+        ...new Set(
+            data
+                .map(request => request.user_id)
+                .filter(Boolean)
+        )
+    ];
+
+
+    let profiles = [];
+
+
+    if (userIds.length > 0) {
+
+        const {
+            data: profileData,
+            error: profileError
+        } =
+            await supabaseClient
+                .from("profiles")
+                .select(
+                    "id, display_name, department"
+                )
+                .in("id", userIds);
+
+
+        if (profileError) {
+
+            console.error(profileError);
+
+            list.innerHTML = `
+                <div class="error">
+                    ไม่สามารถโหลดข้อมูลผู้ขอได้:
+                    ${escapeHtml(profileError.message)}
+                </div>
+            `;
+
+            return;
+
+        }
+
+
+        profiles = profileData || [];
+
+    }
+
+
+    // =================================
+    // สร้าง Profile Map
+    // =================================
+
+    const profileMap =
+        new Map(
+            profiles.map(profile => [
+                profile.id,
+                profile
+            ])
+        );
+
+
+    list.innerHTML = "";
+
+
+    data.forEach(request => {
+
+        const profile =
+            profileMap.get(request.user_id);
+
+
+        const requesterName =
+            profile?.display_name || "-";
+
+
+        const department =
+            profile?.department || "-";
+
+
+        const item =
+            document.createElement("div");
+
+
+        item.className = "request";
+
+
+        item.innerHTML = `
+
+            <div class="request-title">
+
+                ${escapeHtml(request.item_name)}
+
+            </div>
+
+
+            <div class="request-info">
+
+                จำนวน:
+                ${request.quantity}
+
+                <br>
+
+                ผู้ขอ:
+                ${escapeHtml(requesterName)}
+
+                <br>
+
+                แผนก:
+                ${escapeHtml(department)}
+
+                <br>
+
+                วันที่ขอ:
+                ${formatDate(request.created_at)}
+
+                <br>
+
+                สถานะ:
+                ${escapeHtml(request.status)}
+
+                <br>
+
+                ผู้อนุมัติ:
+                ${escapeHtml(request.approved_by || "-")}
+
+                <br>
+
+                วันที่ดำเนินการ:
+                ${formatDate(request.approved_at)}
+
+            </div>
+
+        `;
+
+
+        list.appendChild(item);
+
+    });
+
+}
+
+// =================================
 // อนุมัติ / ไม่อนุมัติ
 // =================================
 
@@ -880,6 +1078,7 @@ async function updateRequest(
         // =================================
 
         loadRequests();
+loadHistory();
 
     }
 
