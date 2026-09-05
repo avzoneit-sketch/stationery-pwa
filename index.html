@@ -30,6 +30,31 @@
             text-align: center;
         }
 
+        .user-bar {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 10px 20px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-info {
+            font-size: 14px;
+            color: #374151;
+            word-break: break-word;
+        }
+
+        .logout-button {
+            width: auto;
+            padding: 8px 14px;
+            margin: 0;
+            background: #dc2626;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
         .container {
             max-width: 600px;
             margin: 20px auto;
@@ -100,6 +125,30 @@
     <h1>Stationery Request</h1>
 
 </header>
+
+
+<!-- ========================= -->
+<!-- User Bar -->
+<!-- ========================= -->
+
+<div class="user-bar">
+
+    <div
+        id="userInfo"
+        class="user-info">
+        กำลังตรวจสอบผู้ใช้...
+    </div>
+
+    <button
+        id="logoutButton"
+        class="logout-button"
+        onclick="logout()">
+
+        ออกจากระบบ
+
+    </button>
+
+</div>
 
 
 <div class="container">
@@ -196,6 +245,183 @@
             SUPABASE_URL,
             SUPABASE_PUBLISHABLE_KEY
         );
+
+
+    // =================================
+    // ตรวจสอบ Login + Role
+    // =================================
+
+    async function checkUserAccess() {
+
+        try {
+
+            const {
+                data: sessionData,
+                error: sessionError
+            } =
+                await supabaseClient
+                    .auth
+                    .getSession();
+
+
+            if (sessionError) {
+
+                throw sessionError;
+
+            }
+
+
+            const session =
+                sessionData.session;
+
+
+            // =================================
+            // ไม่มี Login
+            // =================================
+
+            if (!session) {
+
+                window.location.href =
+                    "./login.html";
+
+                return false;
+
+            }
+
+
+            const user =
+                session.user;
+
+
+            // =================================
+            // อ่าน Profile
+            // =================================
+
+            const {
+                data: profile,
+                error: profileError
+            } =
+                await supabaseClient
+                    .from("profiles")
+                    .select(
+                        "display_name, role, department"
+                    )
+                    .eq(
+                        "id",
+                        user.id
+                    )
+                    .single();
+
+
+            if (profileError) {
+
+                throw profileError;
+
+            }
+
+
+            // =================================
+            // CA ห้ามเข้า User Page
+            // =================================
+
+            if (profile.role === "CA") {
+
+                window.location.href =
+                    "./ca.html";
+
+                return false;
+
+            }
+
+
+            // =================================
+            // ต้องเป็น User เท่านั้น
+            // =================================
+
+            if (profile.role !== "User") {
+
+                await supabaseClient
+                    .auth
+                    .signOut();
+
+                window.location.href =
+                    "./login.html";
+
+                return false;
+
+            }
+
+
+            // =================================
+            // แสดงข้อมูลผู้ใช้
+            // =================================
+
+            document
+                .getElementById("userInfo")
+                .textContent =
+                    profile.display_name +
+                    " | " +
+                    profile.department;
+
+
+            return true;
+
+        }
+        catch (error) {
+
+            console.error(
+                "Access check error:",
+                error
+            );
+
+
+            await supabaseClient
+                .auth
+                .signOut();
+
+
+            window.location.href =
+                "./login.html";
+
+            return false;
+
+        }
+
+    }
+
+
+    // =================================
+    // Logout
+    // =================================
+
+    async function logout() {
+
+        const {
+            error
+        } =
+            await supabaseClient
+                .auth
+                .signOut();
+
+
+        if (error) {
+
+            console.error(error);
+
+            alert(
+                "ไม่สามารถออกจากระบบได้: " +
+                error.message
+            );
+
+            return;
+
+        }
+
+
+        window.location.href =
+            "./login.html";
+
+    }
 
 
     // =================================
@@ -433,39 +659,64 @@
     }
 
 
-// =================================
-// โหลดข้อมูลเมื่อเปิดหน้า
-// =================================
+    // =================================
+    // เริ่มระบบ
+    // =================================
 
-loadRequests();
+    async function initializeApp() {
+
+        const accessGranted =
+            await checkUserAccess();
 
 
-// =================================
-// Supabase Realtime
-// =================================
+        if (!accessGranted) {
 
-supabaseClient
-    .channel("requests-realtime")
-    .on(
-        "postgres_changes",
-        {
-            event: "*",
-            schema: "public",
-            table: "requests"
-        },
-        (payload) => {
-
-            console.log(
-                "Realtime update:",
-                payload
-            );
-
-            loadRequests();
+            return;
 
         }
-    )
-    .subscribe();
 
+
+        // =================================
+        // โหลดข้อมูลเมื่อเปิดหน้า
+        // =================================
+
+        loadRequests();
+
+
+        // =================================
+        // Supabase Realtime
+        // =================================
+
+        supabaseClient
+            .channel("requests-realtime")
+            .on(
+                "postgres_changes",
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "requests"
+                },
+                (payload) => {
+
+                    console.log(
+                        "Realtime update:",
+                        payload
+                    );
+
+                    loadRequests();
+
+                }
+            )
+            .subscribe();
+
+    }
+
+
+    // =================================
+    // เริ่มต้น
+    // =================================
+
+    initializeApp();
 
 </script>
 
