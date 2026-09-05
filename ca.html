@@ -25,6 +25,38 @@
             text-align: center;
         }
 
+        .user-bar {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 10px 20px 0;
+
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+
+            gap: 10px;
+        }
+
+        .user-info {
+            font-size: 14px;
+            color: #374151;
+            word-break: break-word;
+        }
+
+        .logout-button {
+            width: auto;
+            flex: none;
+
+            padding: 8px 14px;
+            margin: 0;
+
+            background: #dc2626;
+
+            font-size: 14px;
+
+            white-space: nowrap;
+        }
+
         .container {
             max-width: 700px;
             margin: 20px auto;
@@ -116,12 +148,40 @@
 </header>
 
 
+<!-- ========================= -->
+<!-- CA User Bar -->
+<!-- ========================= -->
+
+<div class="user-bar">
+
+    <div
+        id="userInfo"
+        class="user-info">
+
+        กำลังตรวจสอบผู้ใช้...
+
+    </div>
+
+
+    <button
+        id="logoutButton"
+        class="logout-button"
+        onclick="logout()">
+
+        ออกจากระบบ
+
+    </button>
+
+</div>
+
+
 <div class="container">
 
 
     <div class="card">
 
         <h2>คำขอรออนุมัติ</h2>
+
 
         <button
             class="refresh"
@@ -131,10 +191,13 @@
 
         </button>
 
+
         <div id="requestList">
 
             <div class="empty">
+
                 กำลังโหลด...
+
             </div>
 
         </div>
@@ -171,6 +234,183 @@
             SUPABASE_URL,
             SUPABASE_PUBLISHABLE_KEY
         );
+
+
+    // =================================
+    // ตรวจสอบ Login + Role
+    // =================================
+
+    async function checkCAAccess() {
+
+        try {
+
+            const {
+                data: sessionData,
+                error: sessionError
+            } =
+                await supabaseClient
+                    .auth
+                    .getSession();
+
+
+            if (sessionError) {
+
+                throw sessionError;
+
+            }
+
+
+            const session =
+                sessionData.session;
+
+
+            // =================================
+            // ไม่มี Login
+            // =================================
+
+            if (!session) {
+
+                window.location.href =
+                    "./login.html";
+
+                return false;
+
+            }
+
+
+            const user =
+                session.user;
+
+
+            // =================================
+            // อ่าน Profile
+            // =================================
+
+            const {
+                data: profile,
+                error: profileError
+            } =
+                await supabaseClient
+                    .from("profiles")
+                    .select(
+                        "display_name, role, department"
+                    )
+                    .eq(
+                        "id",
+                        user.id
+                    )
+                    .single();
+
+
+            if (profileError) {
+
+                throw profileError;
+
+            }
+
+
+            // =================================
+            // User ห้ามเข้า CA
+            // =================================
+
+            if (profile.role === "User") {
+
+                window.location.href =
+                    "./index.html";
+
+                return false;
+
+            }
+
+
+            // =================================
+            // ต้องเป็น CA เท่านั้น
+            // =================================
+
+            if (profile.role !== "CA") {
+
+                await supabaseClient
+                    .auth
+                    .signOut();
+
+                window.location.href =
+                    "./login.html";
+
+                return false;
+
+            }
+
+
+            // =================================
+            // แสดงข้อมูล CA
+            // =================================
+
+            document
+                .getElementById("userInfo")
+                .textContent =
+                    profile.display_name +
+                    " | " +
+                    profile.department;
+
+
+            return true;
+
+        }
+        catch (error) {
+
+            console.error(
+                "CA access check error:",
+                error
+            );
+
+
+            await supabaseClient
+                .auth
+                .signOut();
+
+
+            window.location.href =
+                "./login.html";
+
+            return false;
+
+        }
+
+    }
+
+
+    // =================================
+    // Logout
+    // =================================
+
+    async function logout() {
+
+        const {
+            error
+        } =
+            await supabaseClient
+                .auth
+                .signOut();
+
+
+        if (error) {
+
+            console.error(error);
+
+            alert(
+                "ไม่สามารถออกจากระบบได้: " +
+                error.message
+            );
+
+            return;
+
+        }
+
+
+        window.location.href =
+            "./login.html";
+
+    }
 
 
     // =================================
@@ -423,10 +663,36 @@
 
 
     // =================================
-    // เริ่มต้น
+    // เริ่มต้นระบบ
     // =================================
 
-    loadRequests();
+    async function initializeCA() {
+
+        const accessGranted =
+            await checkCAAccess();
+
+
+        if (!accessGranted) {
+
+            return;
+
+        }
+
+
+        // =================================
+        // โหลดคำขอหลังตรวจสิทธิ์แล้วเท่านั้น
+        // =================================
+
+        loadRequests();
+
+    }
+
+
+    // =================================
+    // Start
+    // =================================
+
+    initializeCA();
 
 </script>
 
