@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Stationery Request - Login</title>
+
+    <link rel="manifest"
+          href="./manifest.json">
+
+    <link rel="apple-touch-icon"
+          href="./icon-192.png">
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+
+            background: #f5f6f8;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            padding: 20px;
+        }
+
+        .login-card {
+
+            width: 100%;
+            max-width: 420px;
+
+            background: white;
+
+            border-radius: 20px;
+
+            padding: 30px 24px;
+
+            box-shadow:
+                0 10px 30px
+                rgba(0,0,0,0.08);
+        }
+
+        .logo {
+
+            width: 90px;
+            height: 90px;
+
+            object-fit: contain;
+
+            display: block;
+
+            margin:
+                0 auto 15px;
+        }
+
+        h1 {
+
+            text-align: center;
+
+            margin:
+                0 0 8px;
+
+            font-size: 26px;
+
+            color: #1f2937;
+        }
+
+        .subtitle {
+
+            text-align: center;
+
+            color: #6b7280;
+
+            margin:
+                0 0 28px;
+
+            font-size: 15px;
+        }
+
+        label {
+
+            display: block;
+
+            margin-bottom: 7px;
+
+            font-weight: 600;
+
+            color: #374151;
+        }
+
+        input {
+
+            width: 100%;
+
+            padding: 13px 14px;
+
+            border:
+                1px solid #d1d5db;
+
+            border-radius: 10px;
+
+            font-size: 16px;
+
+            margin-bottom: 18px;
+
+            outline: none;
+        }
+
+        input:focus {
+
+            border-color: #6b7280;
+
+            box-shadow:
+                0 0 0 3px
+                rgba(107,114,128,0.12);
+        }
+
+        button {
+
+            width: 100%;
+
+            padding: 14px;
+
+            border: none;
+
+            border-radius: 10px;
+
+            background: #1f2937;
+
+            color: white;
+
+            font-size: 17px;
+
+            font-weight: 600;
+
+            cursor: pointer;
+        }
+
+        button:disabled {
+
+            opacity: 0.6;
+
+            cursor: default;
+        }
+
+        .message {
+
+            margin-top: 16px;
+
+            text-align: center;
+
+            font-size: 14px;
+
+            min-height: 20px;
+        }
+
+        .error {
+
+            color: #dc2626;
+        }
+
+        .loading {
+
+            color: #6b7280;
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<div class="login-card">
+
+
+    <img
+        src="./icon-192.png"
+        class="logo"
+        alt="Stationery">
+
+
+    <h1>
+        Stationery Request
+    </h1>
+
+
+    <p class="subtitle">
+        ระบบขอเบิกเครื่องเขียน
+    </p>
+
+
+    <form id="loginForm">
+
+
+        <label for="email">
+            Email
+        </label>
+
+        <input
+            type="email"
+            id="email"
+            placeholder="user@company.com"
+            autocomplete="username"
+            required>
+
+
+        <label for="password">
+            Password
+        </label>
+
+        <input
+            type="password"
+            id="password"
+            placeholder="รหัสผ่าน"
+            autocomplete="current-password"
+            required>
+
+
+        <button
+            type="submit"
+            id="loginButton">
+
+            เข้าสู่ระบบ
+
+        </button>
+
+
+    </form>
+
+
+    <div
+        id="message"
+        class="message">
+    </div>
+
+
+</div>
+
+
+<script>
+
+// ========================================
+// Supabase
+// ========================================
+
+const SUPABASE_URL =
+    "https://bufdbnwklodtylfymxsr.supabase.co";
+
+const SUPABASE_PUBLISHABLE_KEY =
+    "sb_publishable__17NzdoVhyxrq9dvMATssA_kXFpX7_R";
+
+const supabaseClient =
+    window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_PUBLISHABLE_KEY
+    );
+
+
+// ========================================
+// Login
+// ========================================
+
+document
+    .getElementById("loginForm")
+    .addEventListener(
+        "submit",
+        async (e) => {
+
+            e.preventDefault();
+
+
+            const email =
+                document
+                    .getElementById("email")
+                    .value
+                    .trim();
+
+            const password =
+                document
+                    .getElementById("password")
+                    .value;
+
+
+            const button =
+                document
+                    .getElementById("loginButton");
+
+            const message =
+                document
+                    .getElementById("message");
+
+
+            button.disabled = true;
+
+            button.textContent =
+                "กำลังเข้าสู่ระบบ...";
+
+            message.className =
+                "message loading";
+
+            message.textContent =
+                "กำลังตรวจสอบบัญชี";
+
+
+            try {
+
+                const {
+                    data,
+                    error
+                } =
+                    await supabaseClient
+                        .auth
+                        .signInWithPassword({
+                            email: email,
+                            password: password
+                        });
+
+
+                if (error) {
+
+                    throw error;
+
+                }
+
+
+                const user =
+                    data.user;
+
+
+                // =================================
+                // ดึง Profile
+                // =================================
+
+                const {
+                    data: profile,
+                    error: profileError
+                } =
+                    await supabaseClient
+                        .from("profiles")
+                        .select(
+                            "display_name, role, department"
+                        )
+                        .eq(
+                            "id",
+                            user.id
+                        )
+                        .single();
+
+
+                if (profileError) {
+
+                    throw profileError;
+
+                }
+
+
+                // =================================
+                // ตรวจ Role
+                // =================================
+
+                if (profile.role === "CA") {
+
+                    window.location.href =
+                        "./ca.html";
+
+                }
+
+                else {
+
+                    window.location.href =
+                        "./index.html";
+
+                }
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Login error:",
+                    error
+                );
+
+
+                message.className =
+                    "message error";
+
+                message.textContent =
+                    "เข้าสู่ระบบไม่สำเร็จ: " +
+                    error.message;
+
+
+                button.disabled = false;
+
+                button.textContent =
+                    "เข้าสู่ระบบ";
+
+            }
+
+        }
+    );
+
+</script>
+
+
+</body>
+
+</html>
