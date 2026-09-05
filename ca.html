@@ -467,10 +467,86 @@
         }
 
 
+                // =================================
+        // โหลดข้อมูล Profile ของผู้ขอ
+        // =================================
+
+        const userIds = [
+            ...new Set(
+                data
+                    .map(request => request.user_id)
+                    .filter(Boolean)
+            )
+        ];
+
+
+        let profiles = [];
+
+
+        if (userIds.length > 0) {
+
+            const {
+                data: profileData,
+                error: profileError
+            } =
+                await supabaseClient
+                    .from("profiles")
+                    .select(
+                        "id, display_name, department"
+                    )
+                    .in("id", userIds);
+
+
+            if (profileError) {
+
+                console.error(profileError);
+
+                list.innerHTML = `
+                    <div class="error">
+                        ไม่สามารถโหลดข้อมูลผู้ขอได้:
+                        ${escapeHtml(profileError.message)}
+                    </div>
+                `;
+
+                return;
+
+            }
+
+
+            profiles = profileData || [];
+
+        }
+
+
+        // =================================
+        // สร้าง Map สำหรับค้นหา Profile
+        // =================================
+
+        const profileMap =
+            new Map(
+                profiles.map(profile => [
+                    profile.id,
+                    profile
+                ])
+            );
+
+
         list.innerHTML = "";
 
 
         data.forEach(request => {
+
+            const profile =
+                profileMap.get(request.user_id);
+
+
+            const requesterName =
+                profile?.display_name || "-";
+
+
+            const department =
+                profile?.department || "-";
+
 
             const item =
                 document.createElement("div");
@@ -496,12 +572,12 @@
                     <br>
 
                     ผู้ขอ:
-                    ${escapeHtml(request.requester_name || "-")}
+                    ${escapeHtml(requesterName)}
 
                     <br>
 
                     แผนก:
-                    ${escapeHtml(request.department || "-")}
+                    ${escapeHtml(department)}
 
                     <br>
 
