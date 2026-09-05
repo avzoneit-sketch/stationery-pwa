@@ -482,16 +482,32 @@
 
         try {
 
-            const { data, error } =
-                await supabaseClient
-                    .from("requests")
-                    .insert([
-                        {
-                            item_name: itemName,
-                            quantity: quantity
-                        }
-                    ])
-                    .select();
+            const {
+    data: { user },
+    error: userError
+} = await supabaseClient.auth.getUser();
+
+
+if (userError || !user) {
+
+    throw new Error(
+        "ไม่พบผู้ใช้งาน กรุณา Login ใหม่"
+    );
+
+}
+
+
+const { data, error } =
+    await supabaseClient
+        .from("requests")
+        .insert([
+            {
+                item_name: itemName,
+                quantity: quantity,
+                user_id: user.id
+            }
+        ])
+        .select();
 
 
             if (error) {
