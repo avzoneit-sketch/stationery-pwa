@@ -433,11 +433,38 @@
     }
 
 
-    // =================================
-    // โหลดข้อมูลเมื่อเปิดหน้า
-    // =================================
+// =================================
+// โหลดข้อมูลเมื่อเปิดหน้า
+// =================================
 
-    loadRequests();
+loadRequests();
+
+
+// =================================
+// Supabase Realtime
+// =================================
+
+supabaseClient
+    .channel("requests-realtime")
+    .on(
+        "postgres_changes",
+        {
+            event: "*",
+            schema: "public",
+            table: "requests"
+        },
+        (payload) => {
+
+            console.log(
+                "Realtime update:",
+                payload
+            );
+
+            loadRequests();
+
+        }
+    )
+    .subscribe();
 
 
 </script>
