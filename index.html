@@ -2,6 +2,7 @@
 <html lang="th">
 
 <head>
+
     <meta charset="UTF-8">
 
     <meta name="viewport"
@@ -9,8 +10,10 @@
 
     <title>Stationery Request</title>
 
-<link rel="manifest" href="./manifest.json">
-<link rel="apple-touch-icon" href="./icon-192.png">
+    <link rel="manifest" href="./manifest.json">
+
+    <link rel="apple-touch-icon"
+          href="./icon-192.png">
 
     <style>
 
@@ -65,26 +68,51 @@
             font-size: 16px;
         }
 
+        button:disabled {
+            background: #9ca3af;
+        }
+
         .item {
             padding: 12px;
             border-bottom: 1px solid #eee;
+        }
+
+        .empty {
+            color: #777;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .error {
+            color: #dc2626;
+            margin-top: 10px;
         }
 
     </style>
 
 </head>
 
+
 <body>
 
 <header>
+
     <h1>Stationery Request</h1>
+
 </header>
 
+
 <div class="container">
+
+
+    <!-- ========================= -->
+    <!-- สร้างคำขอ -->
+    <!-- ========================= -->
 
     <div class="card">
 
         <h2>สร้างคำขอ</h2>
+
 
         <label>รายการ</label>
 
@@ -92,6 +120,7 @@
             id="itemName"
             type="text"
             placeholder="เช่น ปากกา">
+
 
         <label>จำนวน</label>
 
@@ -101,31 +130,104 @@
             value="1"
             min="1">
 
-        <button onclick="addRequest()">
+
+        <button
+            id="submitButton"
+            onclick="addRequest()">
+
             ส่งคำขอ
+
         </button>
 
+
+        <div
+            id="errorMessage"
+            class="error">
+        </div>
+
     </div>
+
+
+    <!-- ========================= -->
+    <!-- รายการคำขอ -->
+    <!-- ========================= -->
 
     <div class="card">
 
         <h2>รายการคำขอ</h2>
 
-        <div id="requestList"></div>
+        <div id="requestList">
+
+            <div class="empty">
+                กำลังโหลด...
+            </div>
+
+        </div>
 
     </div>
 
+
 </div>
+
+
+<!-- ================================= -->
+<!-- Supabase -->
+<!-- ================================= -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 
 <script>
 
-    function addRequest() {
+    // =================================
+    // Supabase Configuration
+    // =================================
+
+    const SUPABASE_URL =
+        "ใส่ Project URL ของคุณตรงนี้";
+
+
+    const SUPABASE_PUBLISHABLE_KEY =
+        "YOUR_SUPABASE_PUBLISHABLE_KEY";
+
+
+    const supabaseClient =
+        window.supabase.createClient(
+            SUPABASE_URL,
+            SUPABASE_PUBLISHABLE_KEY
+        );
+
+
+    // =================================
+    // เพิ่มคำขอ
+    // =================================
+
+    async function addRequest() {
 
         const itemName =
-            document.getElementById("itemName").value;
+            document.getElementById("itemName")
+                .value
+                .trim();
+
 
         const quantity =
-            document.getElementById("quantity").value;
+            parseInt(
+                document.getElementById("quantity").value
+            );
+
+
+        const button =
+            document.getElementById("submitButton");
+
+
+        const errorMessage =
+            document.getElementById("errorMessage");
+
+
+        errorMessage.textContent = "";
+
+
+        // ตรวจสอบรายการ
 
         if (!itemName) {
 
@@ -134,36 +236,228 @@
             return;
         }
 
+
+        // ตรวจสอบจำนวน
+
+        if (!quantity || quantity < 1) {
+
+            alert("กรุณาระบุจำนวนให้ถูกต้อง");
+
+            return;
+        }
+
+
+        // ป้องกันกดซ้ำ
+
+        button.disabled = true;
+
+        button.textContent = "กำลังส่ง...";
+
+
+        try {
+
+            const { data, error } =
+                await supabaseClient
+                    .from("requests")
+                    .insert([
+                        {
+                            item_name: itemName,
+                            quantity: quantity
+                        }
+                    ])
+                    .select();
+
+
+            if (error) {
+
+                console.error(error);
+
+                throw error;
+            }
+
+
+            // ล้างช่องกรอก
+
+            document.getElementById("itemName")
+                .value = "";
+
+            document.getElementById("quantity")
+                .value = 1;
+
+
+            // โหลดรายการใหม่
+
+            await loadRequests();
+
+
+            alert("ส่งคำขอเรียบร้อย");
+
+
+        }
+        catch (error) {
+
+            console.error(error);
+
+            errorMessage.textContent =
+                "ไม่สามารถส่งคำขอได้: " +
+                error.message;
+
+        }
+        finally {
+
+            button.disabled = false;
+
+            button.textContent = "ส่งคำขอ";
+
+        }
+
+    }
+
+
+    // =================================
+    // โหลดรายการคำขอ
+    // =================================
+
+    async function loadRequests() {
+
         const list =
             document.getElementById("requestList");
 
-        const item =
-            document.createElement("div");
 
-        item.className = "item";
+        const { data, error } =
+            await supabaseClient
+                .from("requests")
+                .select("*")
+                .order("created_at", {
+                    ascending: false
+                });
 
-        item.innerHTML = `
-            <strong>${itemName}</strong>
-            <br>
-            จำนวน: ${quantity}
-            <br>
-            สถานะ: Pending
-        `;
 
-        list.appendChild(item);
+        if (error) {
 
-        document.getElementById("itemName").value = "";
+            console.error(error);
 
-        document.getElementById("quantity").value = 1;
+            list.innerHTML = `
+                <div class="error">
+                    ไม่สามารถโหลดข้อมูลได้
+                </div>
+            `;
+
+            return;
+        }
+
+
+        if (!data || data.length === 0) {
+
+            list.innerHTML = `
+                <div class="empty">
+                    ยังไม่มีรายการคำขอ
+                </div>
+            `;
+
+            return;
+        }
+
+
+        list.innerHTML = "";
+
+
+        data.forEach(request => {
+
+            const item =
+                document.createElement("div");
+
+
+            item.className = "item";
+
+
+            item.innerHTML = `
+                <strong>
+                    ${escapeHtml(request.item_name)}
+                </strong>
+
+                <br>
+
+                จำนวน:
+                ${request.quantity}
+
+                <br>
+
+                สถานะ:
+                ${escapeHtml(request.status)}
+
+                <br>
+
+                วันที่:
+                ${formatDate(request.created_at)}
+            `;
+
+
+            list.appendChild(item);
+
+        });
+
     }
+
+
+    // =================================
+    // ป้องกัน HTML Injection
+    // =================================
+
+    function escapeHtml(value) {
+
+        return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+
+    }
+
+
+    // =================================
+    // แสดงวันที่
+    // =================================
+
+    function formatDate(value) {
+
+        if (!value) {
+            return "-";
+        }
+
+
+        return new Date(value)
+            .toLocaleString("th-TH");
+
+    }
+
+
+    // =================================
+    // โหลดข้อมูลเมื่อเปิดหน้า
+    // =================================
+
+    loadRequests();
+
 
 </script>
 
-    <script>
+
+<!-- ================================= -->
+<!-- Service Worker -->
+<!-- ================================= -->
+
+<script>
+
     if ("serviceWorker" in navigator) {
+
         navigator.serviceWorker.register("./sw.js");
+
     }
+
 </script>
+
+
 </body>
 
 </html>
