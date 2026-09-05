@@ -630,77 +630,169 @@
 
 
     // =================================
-    // อนุมัติ / ไม่อนุมัติ
+// อนุมัติ / ไม่อนุมัติ
+// =================================
+
+async function updateRequest(
+    id,
+    newStatus
+) {
+
+    const message =
+        newStatus === "Approved"
+            ? "ยืนยันการอนุมัติคำขอนี้หรือไม่?"
+            : "ยืนยันการไม่อนุมัติคำขอนี้หรือไม่?";
+
+
+    if (!confirm(message)) {
+
+        return;
+
+    }
+
+
+    // =================================
+    // ตรวจสอบ User ที่ Login อยู่
     // =================================
 
-    async function updateRequest(
-        id,
-        newStatus
-    ) {
-
-        const message =
-            newStatus === "Approved"
-                ? "ยืนยันการอนุมัติคำขอนี้หรือไม่?"
-                : "ยืนยันการไม่อนุมัติคำขอนี้หรือไม่?";
+    const {
+        data: userData,
+        error: userError
+    } =
+        await supabaseClient
+            .auth
+            .getUser();
 
 
-        if (!confirm(message)) {
-
-            return;
-
-        }
-
-
-        const buttons =
-            document.querySelectorAll(
-                `button[onclick*="${id}"]`
-            );
-
-
-        buttons.forEach(button => {
-
-            button.disabled = true;
-
-        });
-
-
-        const { error } =
-            await supabaseClient
-                .from("requests")
-                .update({
-                    status: newStatus,
-                    approved_by: "CA",
-                    approved_at: new Date().toISOString()
-                })
-                .eq("id", id)
-                .eq("status", "Pending");
-
-
-        if (error) {
-
-            console.error(error);
-
-            alert(
-                "ไม่สามารถเปลี่ยนสถานะได้:\n" +
-                error.message
-            );
-
-            loadRequests();
-
-            return;
-        }
-
+    if (userError || !userData.user) {
 
         alert(
-            newStatus === "Approved"
-                ? "อนุมัติเรียบร้อย"
-                : "ไม่อนุมัติเรียบร้อย"
+            "ไม่พบผู้ใช้งาน กรุณา Login ใหม่"
+        );
+
+        return;
+
+    }
+
+
+    const user =
+        userData.user;
+
+
+    // =================================
+    // อ่าน Profile ของ CA
+    // =================================
+
+    const {
+        data: profile,
+        error: profileError
+    } =
+        await supabaseClient
+            .from("profiles")
+            .select(
+                "display_name, role"
+            )
+            .eq(
+                "id",
+                user.id
+            )
+            .single();
+
+
+    if (profileError) {
+
+        console.error(profileError);
+
+        alert(
+            "ไม่สามารถตรวจสอบข้อมูล CA ได้:\n" +
+            profileError.message
+        );
+
+        return;
+
+    }
+
+
+    // =================================
+    // ต้องเป็น CA เท่านั้น
+    // =================================
+
+    if (profile.role !== "CA") {
+
+        alert(
+            "ไม่มีสิทธิ์อนุมัติคำขอ"
+        );
+
+        return;
+
+    }
+
+
+    // =================================
+    // ป้องกันกดซ้ำ
+    // =================================
+
+    const buttons =
+        document.querySelectorAll(
+            `button[onclick*="${id}"]`
         );
 
 
-        await loadRequests();
+    buttons.forEach(button => {
+
+        button.disabled = true;
+
+    });
+
+
+    // =================================
+    // Update Request
+    // =================================
+
+    const { error } =
+        await supabaseClient
+            .from("requests")
+            .update({
+
+                status: newStatus,
+
+                approved_by:
+                    profile.display_name,
+
+                approved_at:
+                    new Date().toISOString()
+
+            })
+            .eq("id", id)
+            .eq("status", "Pending");
+
+
+    if (error) {
+
+        console.error(error);
+
+        alert(
+            "ไม่สามารถเปลี่ยนสถานะได้:\n" +
+            error.message
+        );
+
+        loadRequests();
+
+        return;
 
     }
+
+
+    alert(
+        newStatus === "Approved"
+            ? "อนุมัติเรียบร้อย"
+            : "ไม่อนุมัติเรียบร้อย"
+    );
+
+
+    await loadRequests();
+
+}
 
 
     // =================================
