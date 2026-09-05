@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0">
+
+    <title>Stationery Request - CA</title>
+
+    <style>
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background: #f5f6f8;
+        }
+
+        header {
+            background: #1f2937;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .request {
+            padding: 16px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .request:last-child {
+            border-bottom: none;
+        }
+
+        .request-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .request-info {
+            line-height: 1.7;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 16px;
+        }
+
+        .approve {
+            background: #16a34a;
+        }
+
+        .reject {
+            background: #dc2626;
+        }
+
+        button:disabled {
+            background: #9ca3af;
+        }
+
+        .empty {
+            color: #777;
+            text-align: center;
+            padding: 30px;
+        }
+
+        .error {
+            color: #dc2626;
+            margin-top: 10px;
+        }
+
+        .refresh {
+            background: #2563eb;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+<header>
+
+    <h1>Stationery Request - CA</h1>
+
+</header>
+
+
+<div class="container">
+
+
+    <div class="card">
+
+        <h2>คำขอรออนุมัติ</h2>
+
+        <button
+            class="refresh"
+            onclick="loadRequests()">
+
+            รีเฟรชรายการ
+
+        </button>
+
+        <div id="requestList">
+
+            <div class="empty">
+                กำลังโหลด...
+            </div>
+
+        </div>
+
+    </div>
+
+
+</div>
+
+
+<!-- ================================= -->
+<!-- Supabase -->
+<!-- ================================= -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+
+<script>
+
+    // =================================
+    // Supabase Configuration
+    // =================================
+
+    const SUPABASE_URL =
+        "https://bufdbnwklodtylfymxsr.supabase.co";
+
+
+    const SUPABASE_PUBLISHABLE_KEY =
+        "ใส่ Publishable Key เดิมของคุณตรงนี้";
+
+
+    const supabaseClient =
+        window.supabase.createClient(
+            SUPABASE_URL,
+            SUPABASE_PUBLISHABLE_KEY
+        );
+
+
+    // =================================
+    // โหลดคำขอ Pending
+    // =================================
+
+    async function loadRequests() {
+
+        const list =
+            document.getElementById("requestList");
+
+
+        list.innerHTML = `
+            <div class="empty">
+                กำลังโหลด...
+            </div>
+        `;
+
+
+        const { data, error } =
+            await supabaseClient
+                .from("requests")
+                .select("*")
+                .eq("status", "Pending")
+                .order("created_at", {
+                    ascending: true
+                });
+
+
+        if (error) {
+
+            console.error(error);
+
+            list.innerHTML = `
+                <div class="error">
+                    ไม่สามารถโหลดข้อมูลได้:
+                    ${escapeHtml(error.message)}
+                </div>
+            `;
+
+            return;
+        }
+
+
+        if (!data || data.length === 0) {
+
+            list.innerHTML = `
+                <div class="empty">
+                    ไม่มีคำขอที่รออนุมัติ
+                </div>
+            `;
+
+            return;
+        }
+
+
+        list.innerHTML = "";
+
+
+        data.forEach(request => {
+
+            const item =
+                document.createElement("div");
+
+
+            item.className = "request";
+
+
+            item.innerHTML = `
+
+                <div class="request-title">
+
+                    ${escapeHtml(request.item_name)}
+
+                </div>
+
+
+                <div class="request-info">
+
+                    จำนวน:
+                    ${request.quantity}
+
+                    <br>
+
+                    ผู้ขอ:
+                    ${escapeHtml(request.requester_name || "-")}
+
+                    <br>
+
+                    แผนก:
+                    ${escapeHtml(request.department || "-")}
+
+                    <br>
+
+                    วันที่:
+                    ${formatDate(request.created_at)}
+
+                    <br>
+
+                    สถานะ:
+                    ${escapeHtml(request.status)}
+
+                </div>
+
+
+                <div class="buttons">
+
+                    <button
+                        class="approve"
+                        onclick="updateRequest(
+                            ${request.id},
+                            'Approved'
+                        )">
+
+                        อนุมัติ
+
+                    </button>
+
+
+                    <button
+                        class="reject"
+                        onclick="updateRequest(
+                            ${request.id},
+                            'Rejected'
+                        )">
+
+                        ไม่อนุมัติ
+
+                    </button>
+
+                </div>
+
+            `;
+
+
+            list.appendChild(item);
+
+        });
+
+    }
+
+
+    // =================================
+    // อนุมัติ / ไม่อนุมัติ
+    // =================================
+
+    async function updateRequest(
+        id,
+        newStatus
+    ) {
+
+        const message =
+            newStatus === "Approved"
+                ? "ยืนยันการอนุมัติคำขอนี้หรือไม่?"
+                : "ยืนยันการไม่อนุมัติคำขอนี้หรือไม่?";
+
+
+        if (!confirm(message)) {
+
+            return;
+
+        }
+
+
+        const buttons =
+            document.querySelectorAll(
+                `button[onclick*="${id}"]`
+            );
+
+
+        buttons.forEach(button => {
+
+            button.disabled = true;
+
+        });
+
+
+        const { error } =
+            await supabaseClient
+                .from("requests")
+                .update({
+                    status: newStatus,
+                    approved_by: "CA",
+                    approved_at: new Date().toISOString()
+                })
+                .eq("id", id)
+                .eq("status", "Pending");
+
+
+        if (error) {
+
+            console.error(error);
+
+            alert(
+                "ไม่สามารถเปลี่ยนสถานะได้:\n" +
+                error.message
+            );
+
+            loadRequests();
+
+            return;
+        }
+
+
+        alert(
+            newStatus === "Approved"
+                ? "อนุมัติเรียบร้อย"
+                : "ไม่อนุมัติเรียบร้อย"
+        );
+
+
+        await loadRequests();
+
+    }
+
+
+    // =================================
+    // ป้องกัน HTML Injection
+    // =================================
+
+    function escapeHtml(value) {
+
+        return String(value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+
+    }
+
+
+    // =================================
+    // แสดงวันที่
+    // =================================
+
+    function formatDate(value) {
+
+        if (!value) {
+
+            return "-";
+
+        }
+
+
+        return new Date(value)
+            .toLocaleString("th-TH");
+
+    }
+
+
+    // =================================
+    // เริ่มต้น
+    // =================================
+
+    loadRequests();
+
+</script>
+
+
+</body>
+
+</html>
